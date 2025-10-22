@@ -1,17 +1,27 @@
 #include <Arduino.h>
+#include "lr1121_hal.h"
 #include "lr1121_modem_hal.h"
 #include "lr1121_modem_hal_context.h"
 #include "lr1121_modem_modem_types.h"
 #include "lr1121_modem_modem.h"
 
+
 #define LR1121_MODEM_RESET_TIMEOUT 3000
 
-// Helper function to wait for busy == HIGH  
-static lr1121_modem_hal_status_t lr1121_modem_hal_wait_on_busy( const void* context, uint32_t timeout_ms )
-{
+/*!
+ * Helper function to wait for busy line to reach expected state within timeout.
+ *
+ * @param [in] context Radio implementation parameters
+ * @param [in] timeout_ms Timeout in milliseconds
+ * @param [in] expected_state Expected state of the busy pin (HIGH or LOW)
+ * 
+ * @returns Operation status
+ */
+static lr1121_modem_hal_status_t lr1121_modem_hal_wait_on_busy(const void* context, uint32_t timeout_ms, bool expected_state) {
     const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
+
     uint32_t timeout = millis() + timeout_ms;
-    while(digitalRead(ctx->busy_pin) == LOW) {
+    while(digitalRead(ctx->busy_pin) != expected_state) {
         delayMicroseconds(10);
         // Check if timeout occurred
         if (millis() >= timeout) {
@@ -21,21 +31,14 @@ static lr1121_modem_hal_status_t lr1121_modem_hal_wait_on_busy( const void* cont
     return LR1121_MODEM_HAL_STATUS_OK;
 }
 
-// Helper function to wait for busy == LOW  
-static lr1121_modem_hal_status_t lr1121_modem_hal_wait_on_unbusy( const void* context, uint32_t timeout_ms )
-{
-    const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
-    uint32_t timeout = millis() + timeout_ms;
-
-    while(digitalRead(ctx->busy_pin) == HIGH) {
-        delayMicroseconds(10);
-        // Check if timeout occurred
-        if (millis() >= timeout) {
-            return LR1121_MODEM_HAL_STATUS_ERROR;
-        }
-    }   
-    return LR1121_MODEM_HAL_STATUS_OK;
-}
+static lr1121_hal_status_t lr1121_hal_wait_on_busy(const void* context, uint32_t timeout_ms, bool expected_state) {
+    lr1121_modem_hal_status_t status = lr1121_modem_hal_wait_on_busy(context, timeout_ms, expected_state);
+    if (status == LR1121_MODEM_HAL_STATUS_OK) {
+        return LR1121_HAL_STATUS_OK;
+    } else {
+        return LR1121_HAL_STATUS_ERROR;
+    }
+}   
 
 /*!
  * Wake the radio up.
@@ -47,8 +50,8 @@ lr1121_modem_hal_status_t lr1121_modem_hal_wakeup(const void* context) {
 
     const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
     
-    // if busy = HIGH
-    if (lr1121_modem_hal_wait_on_busy( context, 10000 ) == LR1121_MODEM_HAL_STATUS_OK) {
+    // If busy = HIGH
+    if (lr1121_modem_hal_wait_on_busy(context, 10000, HIGH) == LR1121_MODEM_HAL_STATUS_OK) {
         // Wakeup radio by toggling CS pin
         digitalWrite(ctx->cs_pin, LOW);
         delayMicroseconds(100); // Ensure CS is low for at least 100us 
@@ -58,7 +61,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_wakeup(const void* context) {
     }
     
     // Wait for busy = LOW
-    return lr1121_modem_hal_wait_on_unbusy( context, 1000 );
+    return lr1121_modem_hal_wait_on_busy(context, 1000, LOW);
 }
 
 /*!
@@ -108,7 +111,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
         digitalWrite(ctx->cs_pin, HIGH);
 
         // Wait for busy = HIGH up to 1000 ms
-        if (lr1121_modem_hal_wait_on_busy(context, 1000) != LR1121_MODEM_HAL_STATUS_OK) {
+        if (lr1121_modem_hal_wait_on_busy(context, 1000, HIGH) != LR1121_MODEM_HAL_STATUS_OK) {
             return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
         }
 
@@ -133,7 +136,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
         }
 
         // Wait for busy = LOW up to 1000 ms
-        if (lr1121_modem_hal_wait_on_unbusy(context, 1000) != LR1121_MODEM_HAL_STATUS_OK) {
+        if (lr1121_modem_hal_wait_on_busy(context, 1000, LOW) != LR1121_MODEM_HAL_STATUS_OK) {
             return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
         }
 
@@ -203,9 +206,9 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write_without_rc( const void* context
  *
  * @returns Operation status
  */
-lr1121_modem_hal_status_t lr1121_modem_hal_read( const void* context, const uint8_t* command,
-                                                 const uint16_t command_length, uint8_t* data,
-                                                 const uint16_t data_length ) {
+lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8_t* command,
+                                                const uint16_t command_length, uint8_t* data,
+                                                const uint16_t data_length) {
 
     const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
     
@@ -230,7 +233,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read( const void* context, const uint
         digitalWrite(ctx->cs_pin, HIGH);
        
         // Wait for busy = HIGH up to 1000 ms
-        if (lr1121_modem_hal_wait_on_busy(context, 1000) != LR1121_MODEM_HAL_STATUS_OK) {
+        if (lr1121_modem_hal_wait_on_busy(context, 1000, HIGH) != LR1121_MODEM_HAL_STATUS_OK) {
             return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
         }
         
@@ -251,7 +254,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read( const void* context, const uint
         digitalWrite(ctx->cs_pin, HIGH);
 
         // Wait for busy = LOW up to 1000 ms
-        if (lr1121_modem_hal_wait_on_unbusy(context, 1000) != LR1121_MODEM_HAL_STATUS_OK) {
+        if (lr1121_modem_hal_wait_on_busy(context, 1000, LOW) != LR1121_MODEM_HAL_STATUS_OK) {
             return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
         }
 
@@ -281,6 +284,7 @@ void lr1121_modem_hal_enter_dfu( const void* context ) {
     const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
 
     // set busy pin mode to output and force busy pin to low
+    // TODO pinmodes needed?
     pinMode(ctx->busy_pin, OUTPUT);
     digitalWrite(ctx->busy_pin, LOW);
 
@@ -295,3 +299,159 @@ void lr1121_modem_hal_enter_dfu( const void* context ) {
     // Reinitialize busy pin to input
     pinMode(ctx->busy_pin, INPUT);
 }
+
+// ------ Methods implementing lr1121_hal.h API ------
+
+/*!
+ * Radio data transfer - write
+ *
+ * @remark Must be implemented by the upper layer
+ *
+ * @param [in] context          Radio implementation parameters
+ * @param [in] command          Pointer to the buffer to be transmitted
+ * @param [in] command_length   Buffer size to be transmitted
+ * @param [in] data             Pointer to the buffer to be transmitted
+ * @param [in] data_length      Buffer size to be transmitted
+ *
+ * @returns Operation status
+ */
+lr1121_hal_status_t lr1121_hal_write(const void* context, const uint8_t* command, const uint16_t command_length,
+                                      const uint8_t* data, const uint16_t data_length) {
+
+  const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
+  
+  if (lr1121_hal_wakeup(context) == LR1121_HAL_STATUS_OK) {
+    // Select chip
+    digitalWrite(ctx->cs_pin, LOW);
+
+    // Send command
+    for (uint16_t i = 0; i < command_length; i++) {
+      ctx->spi->transfer(command[i]);
+    }
+    // Send data
+    for (uint16_t i = 0; i < data_length; i++) {
+      ctx->spi->transfer(data[i]);
+    }
+    // Deselect chip
+    digitalWrite(ctx->cs_pin, HIGH);
+
+    return lr1121_hal_wait_on_busy(context, 5000, LOW);
+  }
+  return LR1121_HAL_STATUS_ERROR;
+}
+
+/*!
+ * Radio data transfer - read
+ *
+ * @remark Must be implemented by the upper layer
+ *
+ * @param [in] context          Radio implementation parameters
+ * @param [in] command          Pointer to the buffer to be transmitted
+ * @param [in] command_length   Buffer size to be transmitted
+ * @param [out] data            Pointer to the buffer to be received
+ * @param [in] data_length      Buffer size to be received
+ *
+ * @returns Operation status
+ */
+lr1121_hal_status_t lr1121_hal_read(const void* context, const uint8_t* command, const uint16_t command_length,
+                                     uint8_t* data, const uint16_t data_length) {
+  const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
+  
+  if (lr1121_hal_wakeup(context) == LR1121_HAL_STATUS_OK) {
+    // Select chip
+    digitalWrite(ctx->cs_pin, LOW);
+
+    // Send command
+    for (uint16_t i = 0; i < command_length; i++) {
+        ctx->spi->transfer(command[i]);
+    }
+
+    // Deselect chip
+    digitalWrite(ctx->cs_pin, HIGH);
+
+    if (lr1121_hal_wait_on_busy(context, 5000, LOW) != LR1121_HAL_STATUS_OK) {
+      return LR1121_HAL_STATUS_ERROR;
+    }
+    
+    // Select chip
+    digitalWrite(ctx->cs_pin, LOW);
+    
+    // Send dummy byte to read data
+    ctx->spi->transfer(0);
+    for (uint16_t i = 0; i < data_length; i++) {
+        ctx->spi->transfer(data[i]);
+    }
+
+    // Deselect chip
+    digitalWrite(ctx->cs_pin, HIGH);
+
+    return lr1121_hal_wait_on_busy(context, 5000, LOW);
+  }
+  return LR1121_HAL_STATUS_ERROR;
+}
+
+/*!
+ * @brief  Direct read from the SPI bus
+ *
+ * @remark Unlike @ref lr1121_hal_read, this is a simple direct SPI bus SS/read/nSS operation. While reading the
+ * response data, the implementation of this function must ensure that only zero bytes (NOP) are written to the SPI bus.
+ *
+ * @remark Formerly, that function depended on a lr1121_hal_write_read API function, which required bidirectional SPI
+ * communication. Given that all other radio functionality can be implemented with unidirectional SPI, it has been
+ * decided to make this HAL API change to simplify implementation requirements.
+ *
+ * @remark Only required by the @ref lr1121_bootloader_get_status command
+ *
+ * @param [in]  context      Radio implementation parameters
+ * @param [out] data         Pointer to the buffer to be received
+ * @param [in]  data_length  Buffer size to be received
+ *
+ * @returns Operation status
+ */
+lr1121_hal_status_t lr1121_hal_direct_read(const void* context, uint8_t* data, const uint16_t data_length) {
+  
+  // TODO: Implement direct read functionality if needed
+  return LR1121_HAL_STATUS_ERROR;
+}
+
+/*!
+ * @brief Reset the radio
+ *
+ * @remark Must be implemented by the upper layer
+ *
+ * @param [in] context Radio implementation parameters
+ *
+ * @returns Operation status
+ */
+lr1121_hal_status_t lr1121_hal_reset(const void* context) {
+
+  const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
+  
+  // Reset the radio for 1ms
+  digitalWrite(ctx->reset_pin, LOW);
+  delay(1);  
+  digitalWrite(ctx->reset_pin, HIGH);
+  
+  return LR1121_HAL_STATUS_OK;
+}
+
+/*!
+ * @brief Wake the radio up.
+ *
+ * @remark Must be implemented by the upper layer
+ *
+ * @param [in] context Radio implementation parameters
+ *
+ * @returns Operation status
+ */
+lr1121_hal_status_t lr1121_hal_wakeup(const void* context) {
+  const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
+  
+  // Wakeup radio by toggling CS pin
+  digitalWrite(ctx->cs_pin, LOW);
+  delayMicroseconds(100); // Ensure CS is low for at least 100us 
+  digitalWrite(ctx->cs_pin, HIGH);
+
+  return lr1121_hal_wait_on_busy(context, 5000, LOW);
+}
+
