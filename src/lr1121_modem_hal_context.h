@@ -2,10 +2,8 @@
 #define LR1121_MODEM_HAL_CONTEXT_H
 
 #include <Arduino.h>
-#include <SPI.h>
 
 struct lr1121_modem_hal_context_t {
-    SPIClass *spi;
     uint8_t cs_pin;
     uint8_t busy_pin;
     uint8_t int_pin; 

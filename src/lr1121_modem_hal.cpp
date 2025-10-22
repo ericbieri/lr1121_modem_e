@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <SPI.h>
 #include "lr1121_hal.h"
 #include "lr1121_modem_hal.h"
 #include "lr1121_modem_hal_context.h"
@@ -93,11 +94,11 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
 
         // Send command
         for (uint16_t i = 0; i < command_length; i++) {
-            ctx->spi->transfer(command[i]);
+            SPI.transfer(command[i]);
         }
         // Send data
         for (uint16_t i = 0; i < data_length; i++) {
-            ctx->spi->transfer(data[i]);
+            SPI.transfer(data[i]);
         }
 
         // Compute and send CRC
@@ -105,7 +106,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
         crc = lr1121_modem_compute_crc(crc, data, data_length);
 
         // Send CRC
-        ctx->spi->transfer(crc);
+        SPI.transfer(crc);
 
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
@@ -121,8 +122,8 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
         digitalWrite(ctx->cs_pin, LOW);
 
         // Send dummy bytes
-        status = (lr1121_modem_hal_status_t) ctx->spi->transfer(0x00);
-        crc_received = (lr1121_modem_hal_status_t) ctx->spi->transfer(0x00);
+        status = (lr1121_modem_hal_status_t) SPI.transfer(0x00);
+        crc_received = (lr1121_modem_hal_status_t) SPI.transfer(0x00);
         
         // Compute response CRC
         crc = lr1121_modem_compute_crc(0xFF, (uint8_t*)&status, 1);
@@ -172,18 +173,18 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write_without_rc( const void* context
 
         // Send command
         for (uint16_t i = 0; i < command_length; i++) {
-            ctx->spi->transfer(command[i]);
+            SPI.transfer(command[i]);
         }
 
         // Send data
         for (uint16_t i = 0; i < data_length; i++) {
-            ctx->spi->transfer(data[i]);
+            SPI.transfer(data[i]);
         }
         // Compute and send CRC
         crc = lr1121_modem_compute_crc(0xFF, command, command_length);
         crc = lr1121_modem_compute_crc(crc, data, data_length);
         // Send CRC
-        ctx->spi->transfer(crc);
+        SPI.transfer(crc);
 
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
@@ -221,12 +222,12 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
 
         // Send command
         for (uint16_t i = 0; i < command_length; i++) {
-            ctx->spi->transfer(command[i]);
+            SPI.transfer(command[i]);
         }
 
         // Compute and send CRC
         crc = lr1121_modem_compute_crc(0xFF, command, command_length);
-        ctx->spi->transfer(crc);
+        SPI.transfer(crc);
 
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
@@ -241,13 +242,13 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         digitalWrite(ctx->cs_pin, LOW);
 
         // Read response code
-        status = (lr1121_modem_hal_status_t) ctx->spi->transfer(0);
+        status = (lr1121_modem_hal_status_t) SPI.transfer(0);
         if (status == LR1121_MODEM_HAL_STATUS_OK) {
             for (uint16_t i = 0; i < data_length; i++) {
-                data[i] = ctx->spi->transfer(0);
+                data[i] = SPI.transfer(0);
             }
         }
-        crc_received = ctx->spi->transfer(0);
+        crc_received = SPI.transfer(0);
 
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
@@ -323,11 +324,11 @@ lr1121_hal_status_t lr1121_hal_write(const void* context, const uint8_t* command
 
     // Send command
     for (uint16_t i = 0; i < command_length; i++) {
-      ctx->spi->transfer(command[i]);
+      SPI.transfer(command[i]);
     }
     // Send data
     for (uint16_t i = 0; i < data_length; i++) {
-      ctx->spi->transfer(data[i]);
+      SPI.transfer(data[i]);
     }
     // Deselect chip
     digitalWrite(ctx->cs_pin, HIGH);
@@ -360,7 +361,7 @@ lr1121_hal_status_t lr1121_hal_read(const void* context, const uint8_t* command,
 
     // Send command
     for (uint16_t i = 0; i < command_length; i++) {
-        ctx->spi->transfer(command[i]);
+        SPI.transfer(command[i]);
     }
 
     // Deselect chip
@@ -374,9 +375,9 @@ lr1121_hal_status_t lr1121_hal_read(const void* context, const uint8_t* command,
     digitalWrite(ctx->cs_pin, LOW);
     
     // Send dummy byte to read data
-    ctx->spi->transfer(0);
+    SPI.transfer(0);
     for (uint16_t i = 0; i < data_length; i++) {
-        ctx->spi->transfer(data[i]);
+        SPI.transfer(data[i]);
     }
 
     // Deselect chip
