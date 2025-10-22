@@ -294,9 +294,7 @@ void lr1121_modem_hal_enter_dfu( const void* context ) {
     digitalWrite(ctx->busy_pin, LOW);
 
     // reset the chip
-    digitalWrite(ctx->reset_pin, LOW);
-    delay(1);
-    digitalWrite(ctx->reset_pin, HIGH);
+    lr1121_hal_reset(context);
 
     // wait 250ms
     delay(250);
@@ -432,7 +430,7 @@ lr1121_hal_status_t lr1121_hal_reset(const void* context) {
 
   const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
   
-  // Reset the radio for 1ms
+  // Reset the radio by toggling the reset pin low
   digitalWrite(ctx->reset_pin, LOW);
   delayMicroseconds(LR1121_MODEM_RESET_PULSE_DURATION_US);  
   digitalWrite(ctx->reset_pin, HIGH);
