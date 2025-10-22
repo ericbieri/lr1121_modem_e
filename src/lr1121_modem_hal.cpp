@@ -5,8 +5,14 @@
 #include "lr1121_modem_modem_types.h"
 #include "lr1121_modem_modem.h"
 
+#define LR1121_MODEM_WAIT_ON_BUSY_MS 1000
+#define LR1121_MODEM_WAIT_ON_BUSY_DELAY_US 10
+#define LR1121_MODEM_WAKEUP_TIMEOUT_MS 10000
+#define LR1121_MODEM_WAKEUP_PULSE_DURATION_US 100
+#define LR1121_MODEM_RESET_PULSE_DURATION_US 1000
 
-#define LR1121_MODEM_RESET_TIMEOUT 3000
+// TODO initialization of PINs
+// TODO Refactor modem methods to use hal_reset, wakeup etc. 
 
 /*!
  * Helper function to wait for busy line to reach expected state within timeout.
@@ -22,7 +28,7 @@ static lr1121_modem_hal_status_t lr1121_modem_hal_wait_on_busy(const void* conte
 
     uint32_t timeout = millis() + timeout_ms;
     while(digitalRead(ctx->busy_pin) != expected_state) {
-        delayMicroseconds(10);
+        delayMicroseconds(LR1121_MODEM_WAIT_ON_BUSY_DELAY_US);
         // Check if timeout occurred
         if (millis() >= timeout) {
             return LR1121_MODEM_HAL_STATUS_ERROR;
@@ -51,17 +57,17 @@ lr1121_modem_hal_status_t lr1121_modem_hal_wakeup(const void* context) {
     const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
     
     // If busy = HIGH
-    if (lr1121_modem_hal_wait_on_busy(context, 10000, HIGH) == LR1121_MODEM_HAL_STATUS_OK) {
+    if (lr1121_modem_hal_wait_on_busy(context, LR1121_MODEM_WAKEUP_TIMEOUT_MS, HIGH) == LR1121_MODEM_HAL_STATUS_OK) {
         // Wakeup radio by toggling CS pin
         digitalWrite(ctx->cs_pin, LOW);
-        delayMicroseconds(100); // Ensure CS is low for at least 100us 
+        delayMicroseconds(LR1121_MODEM_WAKEUP_PULSE_DURATION_US); // Ensure CS is low for at least 100us 
         digitalWrite(ctx->cs_pin, HIGH);
     } else {
         return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
     }
     
     // Wait for busy = LOW
-    return lr1121_modem_hal_wait_on_busy(context, 1000, LOW);
+    return lr1121_modem_hal_wait_on_busy(context, LR1121_MODEM_WAIT_ON_BUSY_MS, LOW);
 }
 
 /*!
@@ -110,8 +116,8 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
 
-        // Wait for busy = HIGH up to 1000 ms
-        if (lr1121_modem_hal_wait_on_busy(context, 1000, HIGH) != LR1121_MODEM_HAL_STATUS_OK) {
+        // Wait for busy = HIGH
+        if (lr1121_modem_hal_wait_on_busy(context, LR1121_MODEM_WAIT_ON_BUSY_MS, HIGH) != LR1121_MODEM_HAL_STATUS_OK) {
             return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
         }
 
@@ -135,11 +141,10 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
             status = LR1121_MODEM_HAL_STATUS_BAD_FRAME;
         }
 
-        // Wait for busy = LOW up to 1000 ms
-        if (lr1121_modem_hal_wait_on_busy(context, 1000, LOW) != LR1121_MODEM_HAL_STATUS_OK) {
+        // Wait for busy = LOW
+        if (lr1121_modem_hal_wait_on_busy(context, LR1121_MODEM_WAIT_ON_BUSY_MS, LOW) != LR1121_MODEM_HAL_STATUS_OK) {
             return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
         }
-
         return status;
     }
 
@@ -232,8 +237,8 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
        
-        // Wait for busy = HIGH up to 1000 ms
-        if (lr1121_modem_hal_wait_on_busy(context, 1000, HIGH) != LR1121_MODEM_HAL_STATUS_OK) {
+        // Wait for busy = HIGH
+        if (lr1121_modem_hal_wait_on_busy(context, LR1121_MODEM_WAIT_ON_BUSY_MS, HIGH) != LR1121_MODEM_HAL_STATUS_OK) {
             return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
         }
         
@@ -253,8 +258,8 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
 
-        // Wait for busy = LOW up to 1000 ms
-        if (lr1121_modem_hal_wait_on_busy(context, 1000, LOW) != LR1121_MODEM_HAL_STATUS_OK) {
+        // Wait for busy = LOW
+        if (lr1121_modem_hal_wait_on_busy(context, LR1121_MODEM_WAIT_ON_BUSY_MS, LOW) != LR1121_MODEM_HAL_STATUS_OK) {
             return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
         }
 
@@ -429,7 +434,7 @@ lr1121_hal_status_t lr1121_hal_reset(const void* context) {
   
   // Reset the radio for 1ms
   digitalWrite(ctx->reset_pin, LOW);
-  delay(1);  
+  delayMicroseconds(LR1121_MODEM_RESET_PULSE_DURATION_US);  
   digitalWrite(ctx->reset_pin, HIGH);
   
   return LR1121_HAL_STATUS_OK;
@@ -444,14 +449,15 @@ lr1121_hal_status_t lr1121_hal_reset(const void* context) {
  *
  * @returns Operation status
  */
+// TODO refactor with lr1121_modem_hal_wakeup
 lr1121_hal_status_t lr1121_hal_wakeup(const void* context) {
   const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
   
   // Wakeup radio by toggling CS pin
   digitalWrite(ctx->cs_pin, LOW);
-  delayMicroseconds(100); // Ensure CS is low for at least 100us 
+  delayMicroseconds(LR1121_MODEM_WAKEUP_PULSE_DURATION_US); // Ensure CS is low for at least 100us 
   digitalWrite(ctx->cs_pin, HIGH);
 
-  return lr1121_hal_wait_on_busy(context, 5000, LOW);
+  return lr1121_hal_wait_on_busy(context, LR1121_MODEM_WAKEUP_TIMEOUT_MS, LOW);
 }
 
