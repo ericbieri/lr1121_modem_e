@@ -751,7 +751,7 @@ lr1121_modem_response_code_t lr1121_modem_set_battery_level(
  * @brief Get the current class B ping slot periodicity
  *
  * @param [in] context Chip implementation context
- * @param [in] ping_slot_periodicity Current class B ping slot periodicity
+ * @param [out] ping_slot_periodicity Current class B ping slot periodicity
  *
  * @returns Operation status
  */
@@ -762,7 +762,7 @@ lr1121_modem_response_code_t lr1121_modem_get_class_b_ping_slot_periodicity(
  * @brief Set the class B ping slot periodicity
  *
  * @param [in] context Chip implementation context
- * @param [out] ping_slot_periodicity Class B ping slot periodicity to set
+ * @param [in] ping_slot_periodicity Class B ping slot periodicity to set
  *
  * @returns Operation status
  */
