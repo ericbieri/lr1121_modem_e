@@ -275,6 +275,22 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
 }
 
 /*!
+ * Reset the radio
+ *
+ * @remark Must be implemented by the upper layer
+ *
+ * @param [in] context Radio implementation parameters
+ *
+ * @returns Operation status
+ */
+// TODO fix implementation 
+lr1121_modem_hal_status_t lr1121_modem_hal_reset( const void* context ) {
+    const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
+
+    return (lr1121_modem_hal_status_t) lr1121_hal_reset(context);
+}
+
+/*!
  * Switch the radio in DFU (Device Firmware Update) mode
  *
  * @param [in] context Radio implementation parameters
