@@ -9,10 +9,11 @@
 #define LR1121_HAL_WAIT_ON_BUSY_TIMEOUT_MS 5000
 #define LR1121_HAL_WAIT_ON_BUSY_DELAY_US 10
 #define LR1121_MODEM_WAKEUP_PULSE_DURATION_US 100
+#define LR1121_MODEM_RESET_TIMEOUT_MS 10000
 #define LR1121_MODEM_RESET_PULSE_DURATION_US 1000
 
-// TODO initialization of PINs
 // TODO Refactor modem methods to use hal_reset, wakeup etc. 
+// TODO Use hal_read/write in hal_modem_read/write?
 
 /*!
  * Helper function to wait for busy line to reach expected state within timeout.
@@ -236,7 +237,6 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         for (uint16_t i = 0; i < command_length; i++) {
             SPI.transfer(command[i]);
         }
-
         // Send CRC 
         SPI.transfer(crc);
 
@@ -249,6 +249,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         }
         
         // Send dummy byte to retrieve RC & CRC
+
         // Select chip
         digitalWrite(ctx->cs_pin, LOW);
 
@@ -295,11 +296,27 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
  *
  * @returns Operation status
  */
-// TODO fix implementation 
 lr1121_modem_hal_status_t lr1121_modem_hal_reset( const void* context ) {
-    const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
 
-    return (lr1121_modem_hal_status_t) lr1121_hal_reset(context);
+    uint32_t timeout = millis() + LR1121_MODEM_RESET_TIMEOUT_MS;
+
+    // Reset the chip
+    lr1121_hal_reset(context);
+
+    digitalWrite(A5, HIGH);
+    while (millis() < timeout) {
+        // Wait for the reset event
+        lr1121_modem_event_fields_t* event_fields;
+        lr1121_modem_response_code_t rc = lr1121_modem_get_event(context, event_fields);
+
+        if (rc == LR1121_MODEM_RESPONSE_CODE_OK && event_fields->event_type == LR1121_MODEM_LORAWAN_EVENT_RESET) {
+            Serial.println("Reset event received");
+            digitalWrite(A5, LOW);
+            return LR1121_MODEM_HAL_STATUS_OK;
+        }
+    }
+
+    return LR1121_MODEM_HAL_STATUS_ERROR;
 }
 
 /*!
@@ -312,7 +329,6 @@ void lr1121_modem_hal_enter_dfu( const void* context ) {
     const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
 
     // set busy pin mode to output and force busy pin to low
-    // TODO pinmodes needed?
     pinMode(ctx->busy_pin, OUTPUT);
     digitalWrite(ctx->busy_pin, LOW);
 
@@ -384,14 +400,13 @@ lr1121_hal_status_t lr1121_hal_read(const void* context, const uint8_t* command,
   const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
   
   if (lr1121_hal_wakeup(context) == LR1121_HAL_STATUS_OK) {
+
     // Select chip
     digitalWrite(ctx->cs_pin, LOW);
-
     // Send command
     for (uint16_t i = 0; i < command_length; i++) {
         SPI.transfer(command[i]);
     }
-
     // Deselect chip
     digitalWrite(ctx->cs_pin, HIGH);
 
@@ -436,7 +451,7 @@ lr1121_hal_status_t lr1121_hal_read(const void* context, const uint8_t* command,
  */
 lr1121_hal_status_t lr1121_hal_direct_read(const void* context, uint8_t* data, const uint16_t data_length) {
   
-  // TODO: Implement direct read functionality if needed
+  // TODO: Implement direct read functionality for bootloader.
   return LR1121_HAL_STATUS_ERROR;
 }
 
@@ -470,7 +485,6 @@ lr1121_hal_status_t lr1121_hal_reset(const void* context) {
  *
  * @returns Operation status
  */
-// TODO refactor with lr1121_modem_hal_wakeup
 lr1121_hal_status_t lr1121_hal_wakeup(const void* context) {
   const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
   
