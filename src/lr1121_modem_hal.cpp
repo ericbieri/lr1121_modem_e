@@ -302,6 +302,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_reset( const void* context ) {
 
     // Reset the chip
     lr1121_hal_reset(context);
+    // TODO delay?
 
     digitalWrite(A5, HIGH);
     while (millis() < timeout) {
@@ -314,6 +315,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_reset( const void* context ) {
             digitalWrite(A5, LOW);
             return LR1121_MODEM_HAL_STATUS_OK;
         }
+        // TODO delayMicroseconds?
     }
 
     return LR1121_MODEM_HAL_STATUS_ERROR;
