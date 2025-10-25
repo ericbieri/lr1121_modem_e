@@ -23,8 +23,7 @@
  * 
  * @returns Operation status
  */
-// TODO: switch call direction from _modem to _hal 
-static lr1121_modem_hal_status_t lr1121_modem_hal_wait_on_busy(const void* context, uint32_t timeout_ms, bool expected_state) {
+static lr1121_hal_status_t lr1121_hal_wait_on_busy(const void* context, uint32_t timeout_ms, bool expected_state) {
     const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
 
     uint32_t timeout = millis() + timeout_ms;
@@ -32,20 +31,31 @@ static lr1121_modem_hal_status_t lr1121_modem_hal_wait_on_busy(const void* conte
         delayMicroseconds(LR1121_HAL_WAIT_ON_BUSY_DELAY_US);
         // Check if timeout occurred
         if (millis() >= timeout) {
-            return LR1121_MODEM_HAL_STATUS_ERROR;
+            return LR1121_HAL_STATUS_ERROR;
         }
     }   
-    return LR1121_MODEM_HAL_STATUS_OK;
-}
-
-static lr1121_hal_status_t lr1121_hal_wait_on_busy(const void* context, uint32_t timeout_ms, bool expected_state) {
-    lr1121_modem_hal_status_t status = lr1121_modem_hal_wait_on_busy(context, timeout_ms, expected_state);
-    if (status == LR1121_MODEM_HAL_STATUS_OK) {
-        return LR1121_HAL_STATUS_OK;
-    } else {
-        return LR1121_HAL_STATUS_ERROR;
-    }
+    return LR1121_HAL_STATUS_OK;
 }   
+
+/*!
+ * Helper function to wait for busy line to reach expected state within timeout.
+ *
+ * @param [in] context Radio implementation parameters
+ * @param [in] timeout_ms Timeout in milliseconds
+ * @param [in] expected_state Expected state of the busy pin (HIGH or LOW)
+ * 
+ * @returns Operation status
+ */
+static lr1121_modem_hal_status_t lr1121_modem_hal_wait_on_busy(const void* context, uint32_t timeout_ms, bool expected_state) {
+
+    lr1121_hal_status_t status = lr1121_hal_wait_on_busy(context, timeout_ms, expected_state);
+
+    if (status == LR1121_HAL_STATUS_OK) {
+        return LR1121_MODEM_HAL_STATUS_OK;
+    } else {
+        return LR1121_MODEM_HAL_STATUS_ERROR;
+    }
+}
 
 /*!
  * Wake the radio up.
