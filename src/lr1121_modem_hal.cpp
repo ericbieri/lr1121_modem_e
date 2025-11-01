@@ -226,7 +226,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         uint8_t crc = 0;
         uint8_t crc_received = 0;
         lr1121_modem_hal_status_t status;
-
+        
         // Select chip
         digitalWrite(ctx->cs_pin, LOW);
 
@@ -304,7 +304,6 @@ lr1121_modem_hal_status_t lr1121_modem_hal_reset( const void* context ) {
     lr1121_hal_reset(context);
     // TODO delay?
 
-    digitalWrite(A5, HIGH);
     while (millis() < timeout) {
         // Wait for the reset event
         lr1121_modem_event_fields_t* event_fields;
@@ -312,7 +311,6 @@ lr1121_modem_hal_status_t lr1121_modem_hal_reset( const void* context ) {
 
         if (rc == LR1121_MODEM_RESPONSE_CODE_OK && event_fields->event_type == LR1121_MODEM_LORAWAN_EVENT_RESET) {
             Serial.println("Reset event received");
-            digitalWrite(A5, LOW);
             return LR1121_MODEM_HAL_STATUS_OK;
         }
         // TODO delayMicroseconds?
@@ -337,8 +335,8 @@ void lr1121_modem_hal_enter_dfu( const void* context ) {
     // reset the chip
     lr1121_hal_reset(context);
 
-    // wait 250ms
-    delay(250);
+    // wait > 100ms
+    delay(200);
 
     // Reinitialize busy pin to input
     pinMode(ctx->busy_pin, INPUT);
@@ -413,7 +411,7 @@ lr1121_hal_status_t lr1121_hal_read(const void* context, const uint8_t* command,
     digitalWrite(ctx->cs_pin, HIGH);
 
     if (lr1121_hal_wait_on_busy(context, LR1121_HAL_WAIT_ON_BUSY_TIMEOUT_MS, LOW) != LR1121_HAL_STATUS_OK) {
-      return LR1121_HAL_STATUS_ERROR;
+        return LR1121_HAL_STATUS_ERROR;
     }
     
     // Select chip
@@ -422,7 +420,7 @@ lr1121_hal_status_t lr1121_hal_read(const void* context, const uint8_t* command,
     // Send dummy byte to read data
     SPI.transfer(0);
     for (uint16_t i = 0; i < data_length; i++) {
-        SPI.transfer(data[i]);
+        data[i] = SPI.transfer(0);
     }
 
     // Deselect chip
