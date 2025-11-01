@@ -249,7 +249,6 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         }
         
         // Send dummy byte to retrieve RC & CRC
-
         // Select chip
         digitalWrite(ctx->cs_pin, LOW);
 
