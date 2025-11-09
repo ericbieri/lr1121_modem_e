@@ -163,7 +163,7 @@ lr1121_modem_response_code_t lr1121_modem_system_get_errors( const void* context
 lr1121_modem_response_code_t lr1121_modem_system_clear_errors( const void* context );
 
 /*!
- * @brief lr1121_modem_system_calibrate the requested blocks
+ * @brief Calibrates the requested blocks
  *
  * This function can be called in any mode of the chip.
  *
