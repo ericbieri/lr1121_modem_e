@@ -931,8 +931,8 @@ lr1121_modem_response_code_t lr1121_modem_alc_sync_stop_service( const void* con
  * This time is maintained by the chip after successful reception of an ALC sync downlink.
  * It is expressed as number of seconds elapsed since January 6th 1980 modulo 2^32.
  *
- * @param context Chip implementation context
- * @param alc_sync_epoch_time The current GPS time
+ * @param [in] context Chip implementation context
+ * @param [out] alc_sync_epoch_time The current GPS time
  *
  * @return Operation status
  *
@@ -956,9 +956,9 @@ lr1121_modem_response_code_t lr1121_modem_alc_sync_trig_request( const void* con
  *
  * This command must be called after @ref LR1121_MODEM_LORAWAN_EVENT_FUOTA_DONE event.
  *
- * @param context Chip implementation context
- * @param file_size Size of the received file in bytes
- * @param file_crc CRC of the received file
+ * @param [in] context Chip implementation context
+ * @param [out] file_size Size of the received file in bytes
+ * @param [out] file_crc CRC of the received file
  *
  * @returns Operation status
  */
@@ -995,10 +995,10 @@ lr1121_modem_response_code_t lr1121_modem_fuota_read_file_fragment( const void* 
  * The complete received file is obtained through successive @ref lr1121_modem_fuota_read_file_fragment calls, and the
  * expected CRC is obtained by calling @ref lr1121_modem_fuota_get_file_size_crc.
  *
- * @param file Pointer to the buffer of the complete FUOTA file. It is up to the caller to ensure it is @p file_size
+ * @param [in] file Pointer to the buffer of the complete FUOTA file. It is up to the caller to ensure it is @p file_size
  * byte long
- * @param file_size The number of bytes of the complete FUOTA file
- * @param expected_crc The expected CRC of the file
+ * @param [in] file_size The number of bytes of the complete FUOTA file
+ * @param [in] expected_crc The expected CRC of the file
  * @return true The CRC computed on the file content matches the expected CRC
  * @return false The CRC computed on the file content does not match the expected CRC
  */
