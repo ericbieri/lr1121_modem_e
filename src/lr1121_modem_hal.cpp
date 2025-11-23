@@ -253,14 +253,14 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         digitalWrite(ctx->cs_pin, LOW);
 
         // Read response code
-        status = (lr1121_modem_hal_status_t) SPI.transfer(0);
+        status = (lr1121_modem_hal_status_t) SPI.transfer(0x00);
         if (status == LR1121_MODEM_HAL_STATUS_OK) {
             for (uint16_t i = 0; i < data_length; i++) {
-                data[i] = SPI.transfer(0);
+                data[i] = SPI.transfer(0x00);
             }
         }
         // Read CRC
-        crc_received = SPI.transfer(0);
+        crc_received = SPI.transfer(0x00);
 
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
@@ -417,9 +417,9 @@ lr1121_hal_status_t lr1121_hal_read(const void* context, const uint8_t* command,
     digitalWrite(ctx->cs_pin, LOW);
     
     // Send dummy byte to read data
-    SPI.transfer(0);
+    SPI.transfer(0x00);
     for (uint16_t i = 0; i < data_length; i++) {
-        data[i] = SPI.transfer(0);
+        data[i] = SPI.transfer(0x00);
     }
 
     // Deselect chip
