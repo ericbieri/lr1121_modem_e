@@ -142,7 +142,6 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
         crc = lr1121_modem_compute_crc(0xFF, (uint8_t*)&status, 1);
 
         if (crc != crc_received) {
-            // Change the response code
             return LR1121_MODEM_HAL_STATUS_BAD_FRAME;
         }
 
@@ -287,7 +286,6 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
 
         // Compare CRCs
         if (crc != crc_received) {
-            // Change the response code
             return LR1121_MODEM_HAL_STATUS_BAD_FRAME;
         }
         return status;
