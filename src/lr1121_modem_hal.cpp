@@ -72,7 +72,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_wakeup(const void* context) {
     if ((lr1121_modem_hal_wait_on_busy(context, LR1121_HAL_WAIT_ON_BUSY_TIMEOUT_MS, HIGH) == LR1121_MODEM_HAL_STATUS_OK) &&
         (lr1121_hal_wakeup(context) == LR1121_HAL_STATUS_OK)) {
         return LR1121_MODEM_HAL_STATUS_OK;
-    }
+    } // TODO error handling
     return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
 }
 
@@ -143,7 +143,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
 
         if (crc != crc_received) {
             // Change the response code
-            status = LR1121_MODEM_HAL_STATUS_BAD_FRAME;
+            return LR1121_MODEM_HAL_STATUS_BAD_FRAME;
         }
 
         // Wait for busy = LOW
@@ -151,6 +151,8 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
             return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
         }
         return status;
+    } else {
+        // TODO error handling
     }
 
     return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
@@ -200,6 +202,8 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write_without_rc( const void* context
         digitalWrite(ctx->cs_pin, HIGH);
 
         return status;
+    } else {
+        // TODO error handling
     }
 
     return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
@@ -253,11 +257,14 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         digitalWrite(ctx->cs_pin, LOW);
 
         // Read response code
-        SPI.transfer(0x00);
+        // TODO What are the response codes from the modem? 
+        status = (lr1121_modem_hal_status_t) SPI.transfer(0x00);
         if (status == LR1121_MODEM_HAL_STATUS_OK) {
             for (uint16_t i = 0; i < data_length; i++) {
                 data[i] = SPI.transfer(0x00);
             }
+        } else {
+            // TODO implement error handling
         }
         // Read CRC
         crc_received = SPI.transfer(0x00);
@@ -274,13 +281,18 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         crc = lr1121_modem_compute_crc(0xFF, (uint8_t*)&status, 1);
         if (status == LR1121_MODEM_HAL_STATUS_OK) {
             crc = lr1121_modem_compute_crc(crc, data, data_length);
+        } else {
+            // TODO error handling
         }
+
         // Compare CRCs
         if (crc != crc_received) {
             // Change the response code
-            status = LR1121_MODEM_HAL_STATUS_BAD_FRAME;
+            return LR1121_MODEM_HAL_STATUS_BAD_FRAME;
         }
         return status;
+    } else {
+        // TODO error handling
     }
 
     return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
