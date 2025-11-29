@@ -22,7 +22,7 @@
  * @param [in] data_length Length of the data to be sent
  */
 void spi_write_data(const uint8_t *data, const uint16_t data_length) {
-    for (uint16_t i = 0; i < data_length; i++){
+    for (uint16_t i = 0; i < data_length; i++) {
         SPI.transfer(data[i]);
     }
 }
@@ -35,7 +35,7 @@ void spi_write_data(const uint8_t *data, const uint16_t data_length) {
  * @param [in] dummy_byte Dummy byte to be sent while reading
  */
 void spi_read_data_with_dummy_byte(uint8_t *data, const uint16_t data_length, const uint8_t dummy_byte) {
-    for (uint16_t i = 0; i < data_length; i++){
+    for (uint16_t i = 0; i < data_length; i++) {
         data[i] = SPI.transfer(dummy_byte);
     }
 }
