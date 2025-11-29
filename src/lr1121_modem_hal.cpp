@@ -28,6 +28,19 @@ void spi_write_data(const uint8_t *data, const uint16_t data_length) {
 }
 
 /*!
+ * Helper function to read data over SPI with dummy bytes
+ *
+ * @param [out] data Pointer to the data buffer
+ * @param [in] data_length Length of the data to be read
+ * @param [in] dummy_byte Dummy byte to be sent while reading
+ */
+void spi_read_data_with_dummy_byte(uint8_t *data, const uint16_t data_length, const uint8_t dummy_byte) {
+    for (uint16_t i = 0; i < data_length; i++){
+        data[i] = SPI.transfer(dummy_byte);
+    }
+}
+
+/*!
  * Helper function to wait for busy line to reach expected state within timeout.
  *
  * @param [in] context Radio implementation parameters
@@ -122,7 +135,6 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
         // Send command, data & CRC
         spi_write_data(command, command_length);
         spi_write_data(data, data_length);
-
         spi_write_data(&crc, 1);
 
         // Deselect chip
@@ -139,8 +151,8 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
         digitalWrite(ctx->cs_pin, LOW);
 
         // Send dummy bytes
-        status = (lr1121_modem_hal_status_t) SPI.transfer(0x00);
-        crc_received = SPI.transfer(0x00);
+        spi_read_data_with_dummy_byte((uint8_t*)&status, 1, 0x00);
+        spi_read_data_with_dummy_byte(&crc_received, 1, 0x00);
     
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
@@ -254,18 +266,14 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         digitalWrite(ctx->cs_pin, LOW);
 
         // Read response code
-        // TODO What are the response codes from the modem? 
-        status = (lr1121_modem_hal_status_t) SPI.transfer(0x00);
-
+        spi_read_data_with_dummy_byte((uint8_t*)&status, 1, 0x00);
         if (status == LR1121_MODEM_HAL_STATUS_OK) {
-            for (uint16_t i = 0; i < data_length; i++) {
-                data[i] = SPI.transfer(0x00);
-            }
+            spi_read_data_with_dummy_byte(data, data_length, 0x00);
         } else {
             // TODO implement error handling
         }
         // Read CRC
-        crc_received = SPI.transfer(0x00);
+        spi_read_data_with_dummy_byte((uint8_t*)&crc_received, 1, 0x00);
 
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
@@ -423,10 +431,8 @@ lr1121_hal_status_t lr1121_hal_read(const void* context, const uint8_t* command,
     digitalWrite(ctx->cs_pin, LOW);
     
     // Send dummy byte to read data
-    SPI.transfer(0x00);
-    for (uint16_t i = 0; i < data_length; i++) {
-        data[i] = SPI.transfer(0x00);
-    }
+    spi_write_data(0x00, 1);
+    spi_read_data_with_dummy_byte(data, data_length, 0x00);
 
     // Deselect chip
     digitalWrite(ctx->cs_pin, HIGH);
