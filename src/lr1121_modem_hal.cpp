@@ -21,7 +21,7 @@
  * @param [in] data Pointer to the data buffer
  * @param [in] data_length Length of the data to be sent
  */
-void spi_write(const uint8_t *data, const uint16_t data_length) {
+void spi_write_data(const uint8_t *data, const uint16_t data_length) {
     for (uint16_t i = 0; i < data_length; i++){
         SPI.transfer(data[i]);
     }
@@ -120,10 +120,10 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
         crc = lr1121_modem_compute_crc(crc, data, data_length);
 
         // Send command, data & CRC
-        spi_write(command, command_length);
-        spi_write(data, data_length);
+        spi_write_data(command, command_length);
+        spi_write_data(data, data_length);
 
-        spi_write(&crc, 1);
+        spi_write_data(&crc, 1);
 
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
@@ -194,9 +194,9 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write_without_rc( const void* context
         crc = lr1121_modem_compute_crc(crc, data, data_length);
 
         // Send command, data & CRC
-        spi_write(command, command_length);
-        spi_write(data, data_length);
-        spi_write(&crc, 1);
+        spi_write_data(command, command_length);
+        spi_write_data(data, data_length);
+        spi_write_data(&crc, 1);
 
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
@@ -238,8 +238,8 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         crc = lr1121_modem_compute_crc(0xFF, command, command_length);
 
         // Send command & CRC
-        spi_write(command, command_length);
-        spi_write(&crc, 1);
+        spi_write_data(command, command_length);
+        spi_write_data(&crc, 1);
 
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
@@ -376,8 +376,8 @@ lr1121_hal_status_t lr1121_hal_write(const void* context, const uint8_t* command
     digitalWrite(ctx->cs_pin, LOW);
 
     // Send command & data
-    spi_write(command, command_length);
-    spi_write(data, data_length);
+    spi_write_data(command, command_length);
+    spi_write_data(data, data_length);
 
     // Deselect chip
     digitalWrite(ctx->cs_pin, HIGH);
@@ -410,7 +410,7 @@ lr1121_hal_status_t lr1121_hal_read(const void* context, const uint8_t* command,
     digitalWrite(ctx->cs_pin, LOW);
 
     // Send command
-    spi_write(command, command_length);
+    spi_write_data(command, command_length);
 
     // Deselect chip
     digitalWrite(ctx->cs_pin, HIGH);
