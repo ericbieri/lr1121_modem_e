@@ -16,6 +16,18 @@
 // TODO Use hal_read/write in hal_modem_read/write?
 
 /*!
+ * Helper function to write data over SPI
+ *
+ * @param [in] data Pointer to the data buffer
+ * @param [in] data_length Length of the data to be sent
+ */
+void spi_write(const uint8_t *data, const uint16_t data_length) {
+    for (uint16_t i = 0; i < data_length; i++){
+        SPI.transfer(data[i]);
+    }
+}
+
+/*!
  * Helper function to wait for busy line to reach expected state within timeout.
  *
  * @param [in] context Radio implementation parameters
@@ -107,16 +119,11 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
         crc = lr1121_modem_compute_crc(0xFF, command, command_length);
         crc = lr1121_modem_compute_crc(crc, data, data_length);
 
-        // Send command
-        for (uint16_t i = 0; i < command_length; i++) {
-            SPI.transfer(command[i]);
-        }
-        // Send data
-        for (uint16_t i = 0; i < data_length; i++) {
-            SPI.transfer(data[i]);
-        }
-        // Send CRC
-        SPI.transfer(crc);
+        // Send command, data & CRC
+        spi_write(command, command_length);
+        spi_write(data, data_length);
+
+        spi_write(&crc, 1);
 
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
@@ -132,7 +139,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
         digitalWrite(ctx->cs_pin, LOW);
 
         // Send dummy bytes
-        SPI.transfer(0x00);
+        status = (lr1121_modem_hal_status_t) SPI.transfer(0x00);
         crc_received = SPI.transfer(0x00);
     
         // Deselect chip
@@ -186,16 +193,10 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write_without_rc( const void* context
         crc = lr1121_modem_compute_crc(0xFF, command, command_length);
         crc = lr1121_modem_compute_crc(crc, data, data_length);
 
-        // Send command
-        for (uint16_t i = 0; i < command_length; i++) {
-            SPI.transfer(command[i]);
-        }
-        // Send data
-        for (uint16_t i = 0; i < data_length; i++) {
-            SPI.transfer(data[i]);
-        }
-        // Send CRC
-        SPI.transfer(crc);
+        // Send command, data & CRC
+        spi_write(command, command_length);
+        spi_write(data, data_length);
+        spi_write(&crc, 1);
 
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
@@ -236,12 +237,9 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         // Compute CRC
         crc = lr1121_modem_compute_crc(0xFF, command, command_length);
 
-        // Send command
-        for (uint16_t i = 0; i < command_length; i++) {
-            SPI.transfer(command[i]);
-        }
-        // Send CRC 
-        SPI.transfer(crc);
+        // Send command & CRC
+        spi_write(command, command_length);
+        spi_write(&crc, 1);
 
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
@@ -258,6 +256,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         // Read response code
         // TODO What are the response codes from the modem? 
         status = (lr1121_modem_hal_status_t) SPI.transfer(0x00);
+
         if (status == LR1121_MODEM_HAL_STATUS_OK) {
             for (uint16_t i = 0; i < data_length; i++) {
                 data[i] = SPI.transfer(0x00);
@@ -271,11 +270,6 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         // Deselect chip
         digitalWrite(ctx->cs_pin, HIGH);
 
-        // Wait for busy = LOW
-        if (lr1121_modem_hal_wait_on_busy(context, LR1121_HAL_WAIT_ON_BUSY_TIMEOUT_MS, LOW) != LR1121_MODEM_HAL_STATUS_OK) {
-            return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
-        }
-
         // Compute response CRC
         crc = lr1121_modem_compute_crc(0xFF, (uint8_t*)&status, 1);
         if (status == LR1121_MODEM_HAL_STATUS_OK) {
@@ -288,6 +282,12 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         if (crc != crc_received) {
             return LR1121_MODEM_HAL_STATUS_BAD_FRAME;
         }
+
+        // Wait for busy = LOW
+        if (lr1121_modem_hal_wait_on_busy(context, LR1121_HAL_WAIT_ON_BUSY_TIMEOUT_MS, LOW) != LR1121_MODEM_HAL_STATUS_OK) {
+            return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
+        }
+
         return status;
     } else {
         // TODO error handling
@@ -375,14 +375,10 @@ lr1121_hal_status_t lr1121_hal_write(const void* context, const uint8_t* command
     // Select chip
     digitalWrite(ctx->cs_pin, LOW);
 
-    // Send command
-    for (uint16_t i = 0; i < command_length; i++) {
-      SPI.transfer(command[i]);
-    }
-    // Send data
-    for (uint16_t i = 0; i < data_length; i++) {
-      SPI.transfer(data[i]);
-    }
+    // Send command & data
+    spi_write(command, command_length);
+    spi_write(data, data_length);
+
     // Deselect chip
     digitalWrite(ctx->cs_pin, HIGH);
 
@@ -412,10 +408,10 @@ lr1121_hal_status_t lr1121_hal_read(const void* context, const uint8_t* command,
 
     // Select chip
     digitalWrite(ctx->cs_pin, LOW);
+
     // Send command
-    for (uint16_t i = 0; i < command_length; i++) {
-        SPI.transfer(command[i]);
-    }
+    spi_write(command, command_length);
+
     // Deselect chip
     digitalWrite(ctx->cs_pin, HIGH);
 
