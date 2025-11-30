@@ -309,25 +309,24 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
  */
 lr1121_modem_hal_status_t lr1121_modem_hal_reset( const void* context ) {
 
-    uint32_t timeout = millis() + LR1121_MODEM_RESET_TIMEOUT_MS;
+    // uint32_t timeout = millis() + LR1121_MODEM_RESET_TIMEOUT_MS;
 
     // Reset the chip
     lr1121_hal_reset(context);
-    // TODO delay?
 
-    while (millis() < timeout) {
-        // Wait for the reset event
-        lr1121_modem_event_fields_t* event_fields;
-        lr1121_modem_response_code_t rc = lr1121_modem_get_event(context, event_fields);
+    // while (millis() < timeout) {
+    //     // Wait for the reset event
+    //     lr1121_modem_event_fields_t* event_fields;
+    //     lr1121_modem_response_code_t rc = lr1121_modem_get_event(context, event_fields);
 
-        if (rc == LR1121_MODEM_RESPONSE_CODE_OK && event_fields->event_type == LR1121_MODEM_LORAWAN_EVENT_RESET) {
-            Serial.println("Reset event received");
-            return LR1121_MODEM_HAL_STATUS_OK;
-        }
-        // TODO delayMicroseconds?
-    }
+    //     if (rc == LR1121_MODEM_RESPONSE_CODE_OK && event_fields->event_type == LR1121_MODEM_LORAWAN_EVENT_RESET) {
+    //         Serial.println("Reset event received");
+    //         return LR1121_MODEM_HAL_STATUS_OK;
+    //     }
+    //     // TODO delayMicroseconds?
+    // }
 
-    return LR1121_MODEM_HAL_STATUS_ERROR;
+    return LR1121_MODEM_HAL_STATUS_OK;
 }
 
 /*!
