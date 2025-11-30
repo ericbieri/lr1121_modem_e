@@ -13,8 +13,6 @@
 #define LR1121_MODEM_RESET_PULSE_DURATION_US 1000
 
 // TODO Refactor modem methods to use hal_reset, wakeup etc. 
-// TODO Use hal_read/write in hal_modem_read/write?
-
 /*!
  * Helper function to write data over SPI
  *
@@ -169,8 +167,6 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
             return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
         }
         return status;
-    } else {
-        // TODO error handling
     }
 
     return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
@@ -214,8 +210,6 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write_without_rc( const void* context
         digitalWrite(ctx->cs_pin, HIGH);
 
         return status;
-    } else {
-        // TODO error handling
     }
 
     return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
@@ -270,7 +264,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         if (status == LR1121_MODEM_HAL_STATUS_OK) {
             spi_read_data_with_dummy_byte(data, data_length, 0x00);
         } else {
-            // TODO implement error handling
+            return LR1121_MODEM_HAL_STATUS_ERROR;
         }
         // Read CRC
         spi_read_data_with_dummy_byte((uint8_t*)&crc_received, 1, 0x00);
@@ -283,7 +277,7 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         if (status == LR1121_MODEM_HAL_STATUS_OK) {
             crc = lr1121_modem_compute_crc(crc, data, data_length);
         } else {
-            // TODO error handling
+            return LR1121_MODEM_HAL_STATUS_ERROR;
         }
 
         // Compare CRCs
@@ -297,8 +291,6 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
         }
 
         return status;
-    } else {
-        // TODO error handling
     }
 
     return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
