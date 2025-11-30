@@ -92,10 +92,12 @@ lr1121_modem_hal_status_t lr1121_modem_hal_wakeup(const void* context) {
     const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
     
     // Wait untill busy = HIGH to wake up the chip
-    if ((lr1121_modem_hal_wait_on_busy(context, LR1121_HAL_WAIT_ON_BUSY_TIMEOUT_MS, HIGH) == LR1121_MODEM_HAL_STATUS_OK) &&
-        (lr1121_hal_wakeup(context) == LR1121_HAL_STATUS_OK)) {
-        return LR1121_MODEM_HAL_STATUS_OK;
-    } // TODO error handling
+    if (lr1121_modem_hal_wait_on_busy(context, LR1121_HAL_WAIT_ON_BUSY_TIMEOUT_MS, HIGH) == LR1121_MODEM_HAL_STATUS_OK) {
+        // Wakeup radio by toggling CS pin
+        digitalWrite(ctx->cs_pin, LOW);
+        delayMicroseconds(LR1121_MODEM_WAKEUP_PULSE_DURATION_US); // Ensure CS is low for at least 100us 
+        digitalWrite(ctx->cs_pin, HIGH);
+    }
     return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
 }
 
