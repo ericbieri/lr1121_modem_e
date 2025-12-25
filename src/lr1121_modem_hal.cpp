@@ -9,10 +9,12 @@
 #define LR1121_HAL_WAIT_ON_BUSY_TIMEOUT_MS 5000
 #define LR1121_HAL_WAIT_ON_BUSY_DELAY_US 10
 #define LR1121_MODEM_WAKEUP_PULSE_DURATION_US 100
-#define LR1121_MODEM_RESET_TIMEOUT_MS 10000
-#define LR1121_MODEM_RESET_PULSE_DURATION_US 1000
+#define LR1121_MODEM_RESET_TIMEOUT_MS 3000
+#define LR1121_MODEM_RESET_PULSE_DURATION_MS 1
 
 // TODO Refactor modem methods to use hal_reset, wakeup etc. 
+// TODO Remove digitalWrite debug lines
+// TODO Call to busy & wakeup on a new line
 /*!
  * Helper function to write data over SPI
  *
@@ -92,13 +94,21 @@ lr1121_modem_hal_status_t lr1121_modem_hal_wakeup(const void* context) {
     const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
     
     // Wait untill busy = HIGH to wake up the chip
-    if (lr1121_modem_hal_wait_on_busy(context, LR1121_HAL_WAIT_ON_BUSY_TIMEOUT_MS, HIGH) == LR1121_MODEM_HAL_STATUS_OK) {
+    digitalWrite(A2, HIGH);
+    lr1121_modem_hal_status_t status_wait_busy = lr1121_modem_hal_wait_on_busy(context, LR1121_HAL_WAIT_ON_BUSY_TIMEOUT_MS, HIGH);
+    digitalWrite(A2, LOW);
+    if (status_wait_busy == LR1121_MODEM_HAL_STATUS_OK) {
         // Wakeup radio by toggling CS pin
         digitalWrite(ctx->cs_pin, LOW);
         delayMicroseconds(LR1121_MODEM_WAKEUP_PULSE_DURATION_US); // Ensure CS is low for at least 100us 
         digitalWrite(ctx->cs_pin, HIGH);
+    } else {
+        return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
     }
-    return LR1121_MODEM_HAL_STATUS_BUSY_TIMEOUT;
+    digitalWrite(A1, HIGH);
+    status_wait_busy = lr1121_modem_hal_wait_on_busy(context, LR1121_HAL_WAIT_ON_BUSY_TIMEOUT_MS, LOW);
+    digitalWrite(A1, LOW);
+    return status_wait_busy;
 }
 
 /*!
@@ -118,7 +128,10 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write( const void* context, const uin
 
     const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;   
 
-    if (lr1121_modem_hal_wakeup(context) == LR1121_MODEM_HAL_STATUS_OK) {
+    digitalWrite(A3, HIGH);
+    lr1121_modem_hal_status_t status_wakeup = lr1121_modem_hal_wakeup(context);
+    digitalWrite(A3, LOW);
+    if (status_wakeup == LR1121_MODEM_HAL_STATUS_OK) {   
 
         uint8_t crc = 0;
         uint8_t crc_received = 0;
@@ -191,8 +204,11 @@ lr1121_modem_hal_status_t lr1121_modem_hal_write_without_rc( const void* context
                                                              const uint16_t data_length ) {
 
     const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
-
-    if (lr1121_modem_hal_wakeup(context) == LR1121_MODEM_HAL_STATUS_OK) {
+    
+    digitalWrite(A3, HIGH);
+    lr1121_modem_hal_status_t status_wakeup = lr1121_modem_hal_wakeup(context);
+    digitalWrite(A3, LOW);
+    if (status_wakeup == LR1121_MODEM_HAL_STATUS_OK) {                                                               
         uint8_t crc = 0;
         lr1121_modem_hal_status_t status = LR1121_MODEM_HAL_STATUS_OK;
 
@@ -233,8 +249,11 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
                                                 const uint16_t data_length) {
 
     const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
-    
-    if (lr1121_modem_hal_wakeup(context) == LR1121_MODEM_HAL_STATUS_OK) {   
+
+    digitalWrite(A3, HIGH);
+    lr1121_modem_hal_status_t status_wakeup = lr1121_modem_hal_wakeup(context);
+    digitalWrite(A3, LOW);
+    if (status_wakeup == LR1121_MODEM_HAL_STATUS_OK) {   
         uint8_t crc = 0;
         uint8_t crc_received = 0;
         lr1121_modem_hal_status_t status;
@@ -308,25 +327,36 @@ lr1121_modem_hal_status_t lr1121_modem_hal_read(const void* context, const uint8
  * @returns Operation status
  */
 lr1121_modem_hal_status_t lr1121_modem_hal_reset( const void* context ) {
-
-    // uint32_t timeout = millis() + LR1121_MODEM_RESET_TIMEOUT_MS;
+    const lr1121_modem_hal_context_t* ctx = (const lr1121_modem_hal_context_t*)context;
 
     // Reset the chip
     lr1121_hal_reset(context);
 
-    // while (millis() < timeout) {
-    //     // Wait for the reset event
-    //     lr1121_modem_event_fields_t* event_fields;
-    //     lr1121_modem_response_code_t rc = lr1121_modem_get_event(context, event_fields);
+    // Wait for the LR1121 to signal that an event is pending
+    uint32_t timeout = millis() + LR1121_MODEM_RESET_TIMEOUT_MS;
+    while (digitalRead(ctx->int_pin) == LOW) {
+        delayMicroseconds(100);
+        if (millis() > timeout) {
+            return LR1121_MODEM_HAL_STATUS_ERROR;
+        }
+    }
 
-    //     if (rc == LR1121_MODEM_RESPONSE_CODE_OK && event_fields->event_type == LR1121_MODEM_LORAWAN_EVENT_RESET) {
-    //         Serial.println("Reset event received");
-    //         return LR1121_MODEM_HAL_STATUS_OK;
-    //     }
-    //     // TODO delayMicroseconds?
-    // }
+    // Check if the event is a reset event
+    timeout = millis() + LR1121_MODEM_RESET_TIMEOUT_MS;
+    // TODO does not timeout if the get_event method blocks indefinitely
+    while (millis() < timeout) {
+        lr1121_modem_event_fields_t* event_fields;
+        digitalWrite(A4, HIGH);
+        lr1121_modem_response_code_t rc = lr1121_modem_get_event(context, event_fields);
+        digitalWrite(A4, LOW);
 
-    return LR1121_MODEM_HAL_STATUS_OK;
+        if (rc == LR1121_MODEM_RESPONSE_CODE_OK && event_fields->event_type == LR1121_MODEM_LORAWAN_EVENT_RESET) {
+            Serial.println("Reset event received");
+            return LR1121_MODEM_HAL_STATUS_OK;
+        }
+    }
+    // return error if timeout occurs
+    return LR1121_MODEM_HAL_STATUS_ERROR;
 }
 
 /*!
@@ -474,8 +504,9 @@ lr1121_hal_status_t lr1121_hal_reset(const void* context) {
   
   // Reset the radio by toggling the reset pin low
   digitalWrite(ctx->reset_pin, LOW);
-  delayMicroseconds(LR1121_MODEM_RESET_PULSE_DURATION_US);  
+  delay(LR1121_MODEM_RESET_PULSE_DURATION_MS);  
   digitalWrite(ctx->reset_pin, HIGH);
+  delay(1); // Wait an extra 1 ms to ensure RST has come completely out of reset (RC constant)
   
   return LR1121_HAL_STATUS_OK;
 }
